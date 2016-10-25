@@ -68,26 +68,37 @@ class DlgManual(Gtk.Dialog):
                              "Install", Gtk.ResponseType.OK))
 
         self.set_default_size(200, 50)
+        border_box = Gtk.Box(margin=10)
+        self.get_content_area().add(border_box)
+        self.get_action_area().set_layout(Gtk.ButtonBoxStyle.EDGE)
 
-        appidlabel = Gtk.Label("Game AppID:")
+        vbox = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=6,
+        )
+
+        # App ID
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=50)
+
+        appidlabel = Gtk.Label("Game AppID:", xalign=0, expand=True)
         self.appidentry = Gtk.Entry()
 
-        appidhbox = Gtk.HBox()
-        appidhbox.pack_start(appidlabel, False, False, True)
-        appidhbox.pack_start(self.appidentry, False, False, True)
+        hbox.add(appidlabel)
+        hbox.add(self.appidentry)
+        vbox.add(hbox)
 
-        instdirlabel = Gtk.Label("Game directory name:")
+        # Directory Name
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=50)
+
+        instdirlabel = Gtk.Label("Game directory name:", xalign=0, expand=True)
         self.instdirentry = Gtk.Entry()
 
-        instdirhbox = Gtk.HBox()
-        instdirhbox.pack_start(instdirlabel, False, False, True)
-        instdirhbox.pack_start(self.instdirentry, False, False, True)
+        hbox.add(instdirlabel)
+        hbox.add(self.instdirentry)
+        vbox.add(hbox)
 
-        vbox = Gtk.VBox()
-        vbox.pack_start(appidhbox, False, False, True)
-        vbox.pack_start(instdirhbox, False, False, True)
+        border_box.add(vbox)
 
-        self.get_content_area().add(vbox)
         self.show_all()
 
 class AppManifest(Gtk.Window):
@@ -105,6 +116,7 @@ class AppManifest(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="appmanifest.acf Generator")
         self.connect("delete-event", Gtk.main_quit)
+        self.set_icon_name('preferences-other')
 
         self.set_default_size(480, 300)
 
@@ -279,10 +291,27 @@ class AppManifest(Gtk.Window):
         dialog = DlgManual(self)
         response = dialog.run()
 
-        if response == Gtk.ResponseType.OK:
-            self.add_game(int(dialog.appidentry.get_text()), dialog.instdirentry.get_text())
+        appidentry = dialog.appidentry.get_text()
+        instdirentry = dialog.instdirentry.get_text()
 
         dialog.destroy()
+
+        if response == Gtk.ResponseType.OK:
+            if not appidentry:
+                self._infobar_message('Manual Install Failed: No AppID Entered.')
+                return
+
+            try:
+                _ = int(appidentry)
+            except ValueError:
+                self._infobar_message('Manual Install Failed: AppID is not a number.')
+                return
+
+            if not instdirentry:
+                self._infobar_message('Manual Install Failed: No Install Directory Entered.')
+                return
+
+            self.add_game(int(appidentry), dialog.instdirentry.get_text())
 
     def on_quit_click(self, _):
         """ Main Quit
@@ -317,12 +346,19 @@ class AppManifest(Gtk.Window):
             ''').format(appid=appid, name=name)
         )
         file_descriptor.close()
-        self._infobar_message("Restart Steam for the changes to take effect.")
+        self._infobar_message(
+            "Restart Steam for the changes to take effect.",
+            Gtk.MessageType.INFO
+        )
 
-    def _infobar_message(self, message):
+    def _infobar_message(self, message, message_type=None):
         """ Display a warning message
         """
+        if message_type is None:
+            message_type = Gtk.MessageType.WARNING
+
         self.infobar_label.set_text(message)
+        self.infobar.set_message_type(message_type)
         self.infobar.show_all()
         self.infobar.show()
 
