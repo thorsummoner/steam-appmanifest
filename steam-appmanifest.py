@@ -41,6 +41,13 @@ class DlgToggleApp(Gtk.Dialog):
     def __init__(self, parent, exists, appid, name):
         Gtk.Dialog.__init__(self, "Install appmanifest", parent, 0)
         self.set_default_size(300, 100)
+        vbox = Gtk.Box(
+            margin=10,
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=6,
+        )
+        self.get_content_area().add(vbox)
+        self.get_action_area().set_layout(Gtk.ButtonBoxStyle.EDGE)
 
         label0 = Gtk.Label("Install \""+ name +"\"?")
         label1 = Gtk.Label("appmanifest_"+ str(appid) +".acf")
@@ -55,8 +62,8 @@ class DlgToggleApp(Gtk.Dialog):
             self.add_buttons("Cancel", Gtk.ResponseType.CANCEL,
                              "Install", Gtk.ResponseType.OK,)
 
-        self.get_content_area().add(label0)
-        self.get_content_area().add(label1)
+        vbox.add(label0)
+        vbox.add(label1)
         self.show_all()
 
 class DlgManual(Gtk.Dialog):
@@ -68,14 +75,13 @@ class DlgManual(Gtk.Dialog):
                              "Install", Gtk.ResponseType.OK))
 
         self.set_default_size(200, 50)
-        border_box = Gtk.Box(margin=10)
-        self.get_content_area().add(border_box)
-        self.get_action_area().set_layout(Gtk.ButtonBoxStyle.EDGE)
-
         vbox = Gtk.Box(
+            margin=10,
             orientation=Gtk.Orientation.VERTICAL,
             spacing=6,
         )
+        self.get_content_area().add(vbox)
+        self.get_action_area().set_layout(Gtk.ButtonBoxStyle.EDGE)
 
         # App ID
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=50)
@@ -96,8 +102,6 @@ class DlgManual(Gtk.Dialog):
         hbox.add(instdirlabel)
         hbox.add(self.instdirentry)
         vbox.add(hbox)
-
-        border_box.add(vbox)
 
         self.show_all()
 
