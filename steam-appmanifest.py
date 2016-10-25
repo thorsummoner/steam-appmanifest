@@ -15,7 +15,12 @@
 
 from gi.repository import Gtk
 from xml.etree.ElementTree import ElementTree
-from os import path, listdir, remove, system, popen
+import signal
+from os import (
+    path,
+    listdir,
+    remove,
+)
 import textwrap
 from os.path import isfile, join
 import re
@@ -88,8 +93,18 @@ class DlgManual(Gtk.Dialog):
 class AppManifest(Gtk.Window):
     """ Main App
     """
+    @staticmethod
+    def main():
+        """ Enter GTK Gui Dialog
+        """
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+        AppManifest()
+        Gtk.main()
+
     def __init__(self):
         Gtk.Window.__init__(self, title="appmanifest.acf Generator")
+        self.connect("delete-event", Gtk.main_quit)
 
         self.set_default_size(480, 300)
 
@@ -101,35 +116,53 @@ class AppManifest(Gtk.Window):
             dialog.destroy()
             exit()
 
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        border_box = Gtk.Box(margin=10)
+        self.add(border_box)
+        border_box.show()
 
-        self._init_first_row(vbox)
-        self._init_third_row(vbox)
-        self._init_fourth_row(vbox)
+        vbox = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=6,
+            expand=True,
+        )
 
-        self.add(vbox)
+        self._init_inputs(vbox)
+        self._init_appid_table(vbox)
+        self._init_actions(vbox)
 
+        border_box.add(vbox)
+        vbox.show()
+        self.show()
 
-    def _init_first_row(self, vbox):
+    def _init_inputs(self, vbox):
         """ Top bar
         """
         row0_label = Gtk.Label("https://steamcommunity.com/id/")
         self.steamid = Gtk.Entry()
-        row0_btn = Gtk.Button("Refresh")
+        self.steamid.connect('activate', self.on_refresh)
+        self.btn_refresh = Gtk.Button("Refresh")
 
-        row0_btn.connect("clicked", self.on_refresh_click)
+        self.btn_refresh.connect("clicked", self.on_refresh)
 
         row0 = Gtk.Box(spacing=6)
         row0.pack_start(row0_label, True, True, 0)
         row0.pack_start(self.steamid, True, True, 0)
-        row0.pack_start(row0_btn, True, True, 0)
+        row0.pack_start(self.btn_refresh, True, True, 0)
+        vbox.pack_start(row0, False, False, True)
+        row0.show_all()
 
         # second row
-        row1 = Gtk.Label("Restart Steam for the changes to take effect.")
-        vbox.pack_start(row0, False, False, True)
-        vbox.pack_start(row1, False, False, 0)
+        self.infobar = Gtk.InfoBar(
+            message_type=Gtk.MessageType.WARNING,
+            show_close_button=True,
+        )
+        self.infobar_label = Gtk.Label()
+        self.infobar.get_content_area().add(self.infobar_label)
+        self.infobar.connect("response", self.on_infobar_close)
 
-    def _init_third_row(self, vbox):
+        vbox.pack_start(self.infobar, False, False, 0)
+
+    def _init_appid_table(self, vbox):
         """ AppIds Liststore and Table
         """
         self.game_liststore = Gtk.ListStore(bool, int, str)
@@ -149,13 +182,17 @@ class AppManifest(Gtk.Window):
         row2_treeview.append_column(row2_col_appid)
         row2_treeview.append_column(row2_col_title)
 
+        frame = Gtk.Frame(shadow_type=Gtk.ShadowType.IN)
+
         row2 = Gtk.ScrolledWindow()
         row2.set_size_request(200, 400)
         row2.add(row2_treeview)
+        frame.add(row2)
 
-        vbox.pack_start(row2, True, True, 0)
+        vbox.pack_start(frame, True, True, 0)
+        frame.show_all()
 
-    def _init_fourth_row(self, vbox):
+    def _init_actions(self, vbox):
         """ ButtonBox
         """
         row3_manual = Gtk.Button("Manual")
@@ -164,17 +201,30 @@ class AppManifest(Gtk.Window):
         row3_manual.connect("clicked", self.on_manual_click)
         row3_quit.connect("clicked", self.on_quit_click)
 
-        row3 = Gtk.Box()
+        row3 = Gtk.ButtonBox(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            homogeneous=True,
+            layout_style=Gtk.ButtonBoxStyle.EDGE,
+        )
         row3.pack_start(row3_manual, True, True, 0)
         row3.pack_start(row3_quit, True, True, 0)
 
         vbox.pack_start(row3, False, False, 0)
-
+        row3.show_all()
 
     # slots
-    def on_refresh_click(self, _):
+    def on_refresh(self, _):
+        """ Refresh action
+        """
+        self.btn_refresh.set_sensitive(False)
+        self.refresh_appids()
+        self.btn_refresh.set_sensitive(True)
+
+    def refresh_appids(self):
         """ Fetch user library
         """
+        self.game_liststore.clear()
+
         if not self.steamid.get_text():
             return
 
@@ -196,6 +246,12 @@ class AppManifest(Gtk.Window):
             name = game.find('name').text
             exists = appid in appids
             self.game_liststore.append([exists, appid, name])
+
+        error = tree.find('error')
+        if getattr(error, 'text', False):
+            self._infobar_message(error.text)
+        else:
+            self.infobar.hide()
 
     def on_app_toggle(self, _, table_path):
         """ Appid Toggle Action
@@ -234,19 +290,19 @@ class AppManifest(Gtk.Window):
         self.destroy()
         Gtk.main_quit()
 
-    # other
-    def refresh_single(self, appid):
-        """ Update appid entry by appid
-        """
-        acf_file = STEAM_APPS + "/appmanifest_"+ str(appid) +".acf"
-        exists = path.isfile(acf_file)
+    # # other
+    # def refresh_single(self, appid):
+    #     """ Update appid entry by appid
+    #     """
+    #     acf_file = STEAM_APPS + "/appmanifest_"+ str(appid) +".acf"
+    #     exists = path.isfile(acf_file)
 
-        for row in self.game_liststore:
-            if row[1] == appid:
-                row[0] = exists
-                break
+    #     for row in self.game_liststore:
+    #         if row[1] == appid:
+    #             row[0] = exists
+    #             break
 
-        return exists
+    #     return exists
 
     def refresh_single_row(self, row):
         """ Update appid entry by row reference
@@ -258,8 +314,7 @@ class AppManifest(Gtk.Window):
 
         return exists
 
-    @staticmethod
-    def add_game(appid, name):
+    def add_game(self, appid, name):
         """ Write ACF file for appid with name
         """
         acf_file = STEAM_APPS + "/appmanifest_"+ str(appid) +".acf"
@@ -267,23 +322,29 @@ class AppManifest(Gtk.Window):
         file_descriptor.write(
             textwrap.dedent('''
                 "AppState"
-                {
+                {{
                 \t"appid"\t"{appid}"
                 \t"Universe"\t"1"
                 \t"installdir"\t"{name}"
                 \t"StateFlags"\t"1026"
-                }
+                }}
             ''').format(appid=appid, name=name)
         )
         file_descriptor.close()
+        self._infobar_message("Restart Steam for the changes to take effect.")
 
-def main_gui():
-    """ Enter GTK Gui Dialog
-    """
-    win = AppManifest()
-    win.connect("delete-event", Gtk.main_quit)
-    win.show_all()
-    Gtk.main()
+    def _infobar_message(self, message):
+        """ Display a warning message
+        """
+        self.infobar_label.set_text(message)
+        self.infobar.show_all()
+        self.infobar.show()
+
+    @staticmethod
+    def on_infobar_close(widget, _):
+        """ Allow user to dismis info bar
+        """
+        widget.hide()
 
 if __name__ == '__main__':
-    main_gui()
+    AppManifest.main()
