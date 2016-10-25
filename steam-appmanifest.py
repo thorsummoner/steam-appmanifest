@@ -290,20 +290,6 @@ class AppManifest(Gtk.Window):
         self.destroy()
         Gtk.main_quit()
 
-    # # other
-    # def refresh_single(self, appid):
-    #     """ Update appid entry by appid
-    #     """
-    #     acf_file = STEAM_APPS + "/appmanifest_"+ str(appid) +".acf"
-    #     exists = path.isfile(acf_file)
-
-    #     for row in self.game_liststore:
-    #         if row[1] == appid:
-    #             row[0] = exists
-    #             break
-
-    #     return exists
-
     def refresh_single_row(self, row):
         """ Update appid entry by row reference
         """
