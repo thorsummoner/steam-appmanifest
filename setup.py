@@ -30,5 +30,7 @@ setuptools.setup(
 
     keywords='steam-appmanifest steam',
 
+    install_requires=['vdf'],
+
     scripts=['steam-appmanifest.py'],
 )

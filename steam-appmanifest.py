@@ -13,17 +13,16 @@
     $ sudo pacman -S python python-gobject
 """
 
-from gi.repository import Gtk
-from xml.etree.ElementTree import ElementTree
 import signal
-from os import (
-    path,
-    listdir,
-    remove,
-)
 import textwrap
-from os.path import isfile, join
 import re
+import os
+
+from xml.etree.ElementTree import ElementTree
+from gi.repository import Gtk
+
+import vdf
+
 try:
     from urllib import urlopen
 except ImportError:
@@ -32,7 +31,8 @@ except ImportError:
 # Change this to where your SteamApps folder is located.
 # The default ('~/.steam/steam/SteamApps') should be valid for all Linux installations.
 # "~/.steam/steam" is a symlink to "$XDG_DATA_HOME/Steam" (normally "~/.local/share/Steam")
-STEAM_APPS = path.expanduser('~/.steam/steam/steamapps')
+STEAM_PATH = os.path.expanduser('~/.steam/steam/')
+STEAM_APPS = os.path.join(STEAM_PATH, 'steamapps')
 
 class DlgToggleApp(Gtk.Dialog):
     """ Delete Dialog
@@ -113,6 +113,12 @@ class AppManifest(Gtk.Window):
         AppManifest()
         Gtk.main()
 
+    @property
+    def steam_apps_path(self):
+        """ Currently selected steam library
+        """
+        return self.library_combo.get_active_text()
+
     def __init__(self):
         Gtk.Window.__init__(self, title="appmanifest.acf Generator")
         self.connect("delete-event", Gtk.main_quit)
@@ -120,7 +126,7 @@ class AppManifest(Gtk.Window):
 
         self.set_default_size(480, 300)
 
-        if not path.exists(STEAM_APPS):
+        if not os.path.exists(STEAM_APPS):
             dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.ERROR,
                                        Gtk.ButtonsType.OK, "Couldn't find a Steam install")
             dialog.format_secondary_text('Looked in "'+ STEAM_APPS +'"')
@@ -163,7 +169,20 @@ class AppManifest(Gtk.Window):
         vbox.pack_start(row0, False, False, True)
         row0.show_all()
 
-        # second row
+        row1 = Gtk.Box(spacing=6)
+        row1_label = Gtk.Label('Steam Library: ')
+        row1.add(row1_label)
+
+        self.library_combo = Gtk.ComboBoxText()
+        for library_folder in self.get_library_folders():
+            self.library_combo.append_text(library_folder)
+        self.library_combo.set_active(0)
+        self.library_combo.connect('changed', self.on_refresh)
+        row1.add(self.library_combo)
+        row1.show_all()
+        vbox.add(row1)
+
+        # Error Message Bar
         self.infobar = Gtk.InfoBar(
             message_type=Gtk.MessageType.WARNING,
             show_close_button=True,
@@ -240,7 +259,10 @@ class AppManifest(Gtk.Window):
         if not self.steamid.get_text():
             return
 
-        files = [f for f in listdir(STEAM_APPS) if isfile(join(STEAM_APPS, f))]
+        files = [
+            f for f in os.listdir(self.steam_apps_path)
+            if os.path.isfile(os.path.join(self.steam_apps_path, f))
+        ]
         appids = []
 
         for file_name in files:
@@ -276,9 +298,12 @@ class AppManifest(Gtk.Window):
         response = dialog.run()
 
         if response == Gtk.ResponseType.OK:
-            acf_file = STEAM_APPS + "/appmanifest_"+ str(appid) +".acf"
+            acf_file = os.path.join(
+                self.steam_apps_path,
+                "appmanifest_{}.acf".format(appid)
+            )
             if exists:
-                remove(acf_file)
+                os.remove(acf_file)
             else:
                 self.add_game(appid, name)
         dialog.destroy()
@@ -322,8 +347,11 @@ class AppManifest(Gtk.Window):
     def refresh_single_row(self, row):
         """ Update appid entry by row reference
         """
-        acf_file = STEAM_APPS + "/appmanifest_"+ str(self.game_liststore[row][1]) +".acf"
-        exists = path.isfile(acf_file)
+        acf_file = os.path.join(
+            self.steam_apps_path,
+            "appmanifest_{}.acf".format(self.game_liststore[row][1])
+        )
+        exists = os.path.isfile(acf_file)
 
         self.game_liststore[row][0] = exists
 
@@ -332,20 +360,22 @@ class AppManifest(Gtk.Window):
     def add_game(self, appid, name):
         """ Write ACF file for appid with name
         """
-        acf_file = STEAM_APPS + "/appmanifest_"+ str(appid) +".acf"
-        file_descriptor = open(acf_file, 'w')
-        file_descriptor.write(
-            textwrap.dedent('''
-                "AppState"
-                {{
-                \t"appid"\t"{appid}"
-                \t"Universe"\t"1"
-                \t"installdir"\t"{name}"
-                \t"StateFlags"\t"1026"
-                }}
-            ''').format(appid=appid, name=name)
+        acf_file = os.path.join(
+            self.steam_apps_path,
+            "appmanifest_{}.acf".format(appid)
         )
-        file_descriptor.close()
+        with open(acf_file, 'w') as file_descriptor:
+            file_descriptor.write(
+                textwrap.dedent('''
+                    "AppState"
+                    {{
+                    \t"appid"\t"{appid}"
+                    \t"Universe"\t"1"
+                    \t"installdir"\t"{name}"
+                    \t"StateFlags"\t"1026"
+                    }}
+                ''').format(appid=appid, name=name)
+            )
         self._infobar_message(
             "Restart Steam for the changes to take effect.",
             Gtk.MessageType.INFO
@@ -367,6 +397,31 @@ class AppManifest(Gtk.Window):
         """ Allow user to dismis info bar
         """
         widget.hide()
+
+    @staticmethod
+    def get_library_folders():
+        """ Get all Steam Library Folders
+        """
+        with open(os.path.join(STEAM_PATH, 'config/config.vdf')) as file_descriptor:
+            vdata = vdf.load(file_descriptor)
+
+        steam_data = vdata \
+            ["InstallConfigStore"] \
+            ["Software"] \
+            ["Valve"] \
+            ["Steam"]
+
+        library_folders = [STEAM_APPS]
+
+        i = 0
+        while True:
+            i += 1
+            try:
+                library_folders.append(
+                    steam_data["BaseInstallFolder_{}".format(i)] + '/steamapps'
+                )
+            except KeyError:
+                return library_folders
 
 if __name__ == '__main__':
     AppManifest.main()
