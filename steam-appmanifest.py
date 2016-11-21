@@ -391,6 +391,7 @@ class AppManifest(Gtk.Window):
             self.steam_apps_path,
             "appmanifest_{}.acf".format(appid)
         )
+        name = name.replace(os.sep, '-')
         with open(acf_file, 'w') as file_descriptor:
             file_descriptor.write(
                 textwrap.dedent('''
