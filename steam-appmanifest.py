@@ -21,7 +21,12 @@ import os
 from xml.etree.ElementTree import ElementTree
 from gi.repository import Gtk
 
-import vdf
+HAS_VDF = False
+try:
+    import vdf
+    HAS_VDF = True
+except ImportError:
+    pass
 
 try:
     from urllib import urlopen
@@ -406,6 +411,11 @@ class AppManifest(Gtk.Window):
     def get_library_folders():
         """ Get all Steam Library Folders
         """
+        library_folders = [STEAM_APPS]
+
+        if not HAS_VDF:
+            return library_folders
+
         with open(os.path.join(STEAM_PATH, 'config/config.vdf')) as file_descriptor:
             vdata = vdf.load(file_descriptor)
 
@@ -415,7 +425,6 @@ class AppManifest(Gtk.Window):
             ["Valve"] \
             ["Steam"]
 
-        library_folders = [STEAM_APPS]
 
         i = 0
         while True:
