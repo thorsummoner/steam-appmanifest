@@ -38,6 +38,8 @@ except ImportError:
 # "~/.steam/steam" is a symlink to "$XDG_DATA_HOME/Steam" (normally "~/.local/share/Steam")
 STEAM_PATH = os.path.expanduser('~/.steam/steam/')
 STEAM_APPS = os.path.join(STEAM_PATH, 'steamapps')
+STEAM_VDF_CONFIG = os.path.join(STEAM_PATH, 'config/config.vdf')
+STEAM_VDF_LOGINS = os.path.join(STEAM_PATH, 'config/loginusers.vdf')
 
 class DlgToggleApp(Gtk.Dialog):
     """ Delete Dialog
@@ -165,8 +167,17 @@ class AppManifest(Gtk.Window):
         """ Top bar
         """
         row0_label = Gtk.Label("https://steamcommunity.com/id/")
-        self.steamid = Gtk.Entry()
-        self.steamid.connect('activate', self.on_refresh)
+        self.steamid = Gtk.ComboBoxText.new_with_entry()
+        entry = self.steamid.get_child()
+        entry.connect('activate', self.on_refresh)
+        self.steamid.connect('changed', self.on_refresh_combo)
+
+        if HAS_VDF:
+            with open(STEAM_VDF_LOGINS) as file_descriptor:
+                vdata_logins = vdf.load(file_descriptor)
+                for vdata_login in vdata_logins['users'].values():
+                    self.steamid.append_text(vdata_login['PersonaName'])
+
         self.btn_refresh = Gtk.Button("Refresh")
 
         self.btn_refresh.connect("clicked", self.on_refresh)
@@ -253,19 +264,26 @@ class AppManifest(Gtk.Window):
         row3.show_all()
 
     # slots
-    def on_refresh(self, _):
+    def on_refresh(self, *_):
         """ Refresh action
         """
         self.btn_refresh.set_sensitive(False)
         self.refresh_appids()
         self.btn_refresh.set_sensitive(True)
 
+    def on_refresh_combo(self, *_):
+        """ Combo refresh
+        """
+        if self.steamid.get_active() == -1:
+            return
+        self.on_refresh()
+
     def refresh_appids(self):
         """ Fetch user library
         """
         self.game_liststore.clear()
 
-        if not self.steamid.get_text():
+        if not self.steamid.get_active_text():
             return
 
         files = [
@@ -279,7 +297,7 @@ class AppManifest(Gtk.Window):
             if match:
                 appids.append(int(match.groups(1)[0]))
 
-        url = "http://steamcommunity.com/id/"+ self.steamid.get_text() +"/games?tab=all&xml=1"
+        url = "http://steamcommunity.com/id/"+ self.steamid.get_active_text() +"/games?tab=all&xml=1"
         html = urlopen(url)
         tree = ElementTree()
         tree.parse(html)
@@ -416,15 +434,14 @@ class AppManifest(Gtk.Window):
         if not HAS_VDF:
             return library_folders
 
-        with open(os.path.join(STEAM_PATH, 'config/config.vdf')) as file_descriptor:
-            vdata = vdf.load(file_descriptor)
+        with open(STEAM_VDF_CONFIG) as file_descriptor:
+            vdata_config = vdf.load(file_descriptor)
 
-        steam_data = vdata \
+        steam_data = vdata_config \
             ["InstallConfigStore"] \
             ["Software"] \
             ["Valve"] \
             ["Steam"]
-
 
         i = 0
         while True:
