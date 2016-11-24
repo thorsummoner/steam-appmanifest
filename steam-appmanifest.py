@@ -20,6 +20,7 @@ import os
 
 from xml.etree.ElementTree import ElementTree
 from gi.repository import Gtk
+from gi.repository import GdkPixbuf
 
 HAS_VDF = False
 try:
@@ -40,6 +41,28 @@ STEAM_PATH = os.path.expanduser('~/.steam/steam/')
 STEAM_APPS = os.path.join(STEAM_PATH, 'steamapps')
 STEAM_VDF_CONFIG = os.path.join(STEAM_PATH, 'config/config.vdf')
 STEAM_VDF_LOGINS = os.path.join(STEAM_PATH, 'config/loginusers.vdf')
+
+def icon_with_emblem(icon_names, emblem_names):
+    """ Cheap emblem renderer
+    """
+    theme = Gtk.IconTheme.get_default()
+
+    icon = theme.choose_icon(icon_names, 36, Gtk.IconLookupFlags.USE_BUILTIN).load_icon()
+    emblem = theme.choose_icon(emblem_names, 16, Gtk.IconLookupFlags.USE_BUILTIN).load_icon()
+
+    # emblem.composite(
+    #     dest=icon,
+    #     dest_x=icon.get_width() - emblem.get_width(),
+    #     dest_y=icon.get_height() - emblem.get_height(),
+    #     dest_width=emblem.get_width(), dest_height=emblem.get_height(),
+    #     offset_x=icon.get_width() - emblem.get_width(),
+    #     offset_y=icon.get_height() - emblem.get_height(),
+    #     scale_x=1.0, scale_y=1.0,
+    #     interp_type=GdkPixbuf.InterpType.BILINEAR,
+    #     overall_alpha=255
+    # )
+
+    return icon
 
 class DlgToggleApp(Gtk.Dialog):
     """ Delete Dialog
@@ -131,9 +154,12 @@ class AppManifest(Gtk.Window):
         return self.library_combo.get_active_text()
 
     def __init__(self):
-        Gtk.Window.__init__(self, title="appmanifest.acf Generator")
+        Gtk.Window.__init__(
+            self,
+            title="appmanifest.acf Generator",
+        )
         self.connect("delete-event", Gtk.main_quit)
-        self.set_icon_name('preferences-other')
+        self.set_icon(icon_with_emblem(['steam'], ['emblem-downloads']))
 
         self.set_default_size(480, 300)
 
