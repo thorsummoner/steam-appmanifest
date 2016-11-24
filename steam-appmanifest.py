@@ -131,9 +131,11 @@ class AppManifest(Gtk.Window):
         return self.library_combo.get_active_text()
 
     def __init__(self):
-        Gtk.Window.__init__(self, title="appmanifest.acf Generator")
+        Gtk.Window.__init__(self,
+                            title="appmanifest.acf Generator",
+                            icon_name="emblem-downloads",
+        )
         self.connect("delete-event", Gtk.main_quit)
-        self.set_icon_name('preferences-other')
 
         self.set_default_size(480, 300)
 
