@@ -19,6 +19,7 @@ You need Python 2 or 3 and GObject Bindings for the script to run.
 * Debian and Ubuntu (and derivatives) don't have these installed by default. The packages are `python3` and `python3-gi`.
 * ArchLinux and derivatives can install `python` and `python-gobject`.
 * Fedora should have everything installed by default.
+* Mac OS requires python3 bindings for GTK3, which can be installed with `brew install pygobject3 --with-python3`.
 
 ## Installation
 
