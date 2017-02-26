@@ -215,12 +215,23 @@ class AppManifest(Gtk.Window):
 
         vbox.pack_start(self.infobar, False, False, 0)
 
+    def _treeview_search(self, model, column, key, _iter, search_data=None):
+        """
+        Returns: False if the row matches, True otherwise.
+        """
+        return key.lower() not in model[_iter][int(column)].lower()
+
     def _init_appid_table(self, vbox):
         """ AppIds Liststore and Table
         """
         self.game_liststore = Gtk.ListStore(bool, int, str)
 
-        treeview = Gtk.TreeView(model=self.game_liststore)
+        treeview = Gtk.TreeView(
+            model=self.game_liststore,
+            enable_search=True,
+            search_column=2,
+        )
+        treeview.set_search_equal_func(self._treeview_search)
 
         renderer_text = Gtk.CellRendererText()
         renderer_check = Gtk.CellRendererToggle()
