@@ -164,6 +164,10 @@ class AppManifest(Gtk.Window):
         border_box.add(vbox)
         vbox.show()
         self.show()
+        if self.steamid._has_active:
+            self.refresh_appids()
+            self.game_treeview.grab_focus()
+            self.steamid.get_child().set_position(0)
 
     def _init_inputs(self, vbox):
         """ Top bar
@@ -172,13 +176,18 @@ class AppManifest(Gtk.Window):
         self.steamid = Gtk.ComboBoxText.new_with_entry()
         entry = self.steamid.get_child()
         entry.connect('activate', self.on_refresh)
-        self.steamid.connect('changed', self.on_refresh_combo)
 
+        self.steamid._has_active = False
         if HAS_VDF:
             with open(STEAM_VDF_LOGINS) as file_descriptor:
                 vdata_logins = vdf.load(file_descriptor)
                 for vdata_login in vdata_logins['users'].values():
                     self.steamid.append_text(vdata_login['PersonaName'])
+                    if vdata_login['RememberPassword'] == '1':
+                        self.steamid.set_active(len(self.steamid) - 1)
+                        self.steamid._has_active = True
+
+        self.steamid.connect('changed', self.on_refresh_combo)
 
         self.btn_refresh = Gtk.Button("Refresh")
 
@@ -231,6 +240,7 @@ class AppManifest(Gtk.Window):
             enable_search=True,
             search_column=2,
         )
+        self.game_treeview = treeview
         treeview.set_search_equal_func(self._treeview_search)
 
         renderer_text = Gtk.CellRendererText()
