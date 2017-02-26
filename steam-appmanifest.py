@@ -225,7 +225,7 @@ class AppManifest(Gtk.Window):
         renderer_text = Gtk.CellRendererText()
         renderer_check = Gtk.CellRendererToggle()
 
-        col_toggle = Gtk.TreeViewColumn("", renderer_check, active=0)
+        col_toggle = Gtk.TreeViewColumn(u"\u2610", renderer_check, active=0)
         col_appid = Gtk.TreeViewColumn("AppID", renderer_text, text=1)
         col_title = Gtk.TreeViewColumn("Title", renderer_text, text=2)
 
