@@ -220,26 +220,26 @@ class AppManifest(Gtk.Window):
         """
         self.game_liststore = Gtk.ListStore(bool, int, str)
 
-        row2_treeview = Gtk.TreeView(model=self.game_liststore)
+        treeview = Gtk.TreeView(model=self.game_liststore)
 
-        row2_renderer_text = Gtk.CellRendererText()
-        row2_renderer_check = Gtk.CellRendererToggle()
+        renderer_text = Gtk.CellRendererText()
+        renderer_check = Gtk.CellRendererToggle()
 
-        row2_col_toggle = Gtk.TreeViewColumn("", row2_renderer_check, active=0)
-        row2_col_appid = Gtk.TreeViewColumn("AppID", row2_renderer_text, text=1)
-        row2_col_title = Gtk.TreeViewColumn("Title", row2_renderer_text, text=2)
+        col_toggle = Gtk.TreeViewColumn("", renderer_check, active=0)
+        col_appid = Gtk.TreeViewColumn("AppID", renderer_text, text=1)
+        col_title = Gtk.TreeViewColumn("Title", renderer_text, text=2)
 
-        row2_renderer_check.connect("toggled", self.on_app_toggle)
+        renderer_check.connect("toggled", self.on_app_toggle)
 
-        row2_treeview.append_column(row2_col_toggle)
-        row2_treeview.append_column(row2_col_appid)
-        row2_treeview.append_column(row2_col_title)
+        treeview.append_column(col_toggle)
+        treeview.append_column(col_appid)
+        treeview.append_column(col_title)
 
         frame = Gtk.Frame(shadow_type=Gtk.ShadowType.IN)
 
         row2 = Gtk.ScrolledWindow()
         row2.set_size_request(200, 400)
-        row2.add(row2_treeview)
+        row2.add(treeview)
         frame.add(row2)
 
         vbox.pack_start(frame, True, True, 0)
